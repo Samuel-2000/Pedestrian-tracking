@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 from ultralytics import YOLO
 from bytetrack import ByteTrack
 from deepsort import DeepSORT
