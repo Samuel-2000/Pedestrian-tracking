@@ -10,3 +10,4 @@ torchvision
 Pillow
 seaborn
 tqdm
+motmetrics
