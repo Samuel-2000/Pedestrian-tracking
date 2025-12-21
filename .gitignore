@@ -1,5 +1,6 @@
 datasets/
 runs/
+venv_new/
 *pyc
 *.pt
 *.zip

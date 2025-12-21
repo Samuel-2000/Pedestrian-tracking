@@ -36,8 +36,8 @@ class DeepSORT:
         self.utils = TrackerUtils()
         self.kalman_filter = self.utils.create_kalman_filter(8, 4, 'deepsort')
         
-        self.feature_dim = 128
         self.reid_extractor = ReIDExtractor(device='cpu')
+        self.feature_dim = self.reid_extractor.feat_dim
         self.current_frame = None
     
     # === KONVERZIE FORMATOV ===

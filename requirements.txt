@@ -11,3 +11,4 @@ Pillow
 seaborn
 tqdm
 motmetrics
+torchreid

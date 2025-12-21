@@ -132,7 +132,7 @@ def evaluate_mot_results(gt_path, result_path, distth=0.5):
     return summary, acc
 
 
-def test_mot_tracking(sequence_name, model_path, tracker_type='both', mot17_base='datasets/mot/MOT17/train'):
+def test_mot_tracking(sequence_name, model_path, model_name, tracker_type='both', mot17_base='datasets/mot/MOT17/train'):
     sequence_path = os.path.join(mot17_base, sequence_name)
     gt_path = os.path.join(sequence_path, 'gt', 'gt.txt')
     
@@ -149,12 +149,12 @@ def test_mot_tracking(sequence_name, model_path, tracker_type='both', mot17_base
     
     for tracker in trackers_to_test:
         print(f"\n{'='*60}")
-        print(f"Testing {tracker.upper()} on {sequence_name}")
+        print(f"Testing {tracker.upper()} on {sequence_name} with {model_name}")
         print(f"{'='*60}")
         
         output_dir = 'output/tracking'
         os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, f"{tracker}_{sequence_name}.txt")
+        output_file = os.path.join(output_dir, f"{model_name}_{tracker}_{sequence_name}.txt")
         
         try:
             process_mot_sequence(sequence_path, model_path, tracker, output_file)
@@ -168,7 +168,7 @@ def test_mot_tracking(sequence_name, model_path, tracker_type='both', mot17_base
     return results
 
 
-def compare_trackers(sequence='MOT17-02-DPM', tracking_dir='output/tracking', output_dir='output/graphs'):
+def compare_trackers(sequence='MOT17-02-DPM', model_name='', tracking_dir='output/tracking', output_dir='output/graphs'):
     def load_tracking_results(txt_path):
         if not os.path.exists(txt_path):
             return None
@@ -183,17 +183,21 @@ def compare_trackers(sequence='MOT17-02-DPM', tracking_dir='output/tracking', ou
         except:
             return None
     
-    bt_txt = os.path.join(tracking_dir, f'bytetrack_{sequence}.txt')
-    ds_txt = os.path.join(tracking_dir, f'deepsort_{sequence}.txt')
-    bt_summary = os.path.join(tracking_dir, f'bytetrack_{sequence}_summary.txt')
-    ds_summary = os.path.join(tracking_dir, f'deepsort_{sequence}_summary.txt')
+    bt_txt = os.path.join(tracking_dir, f'{model_name}_bytetrack_{sequence}.txt')
+    ds_txt = os.path.join(tracking_dir, f'{model_name}_deepsort_{sequence}.txt')
+    bt_summary = os.path.join(tracking_dir, f'{model_name}_bytetrack_{sequence}_summary.txt')
+    ds_summary = os.path.join(tracking_dir, f'{model_name}_deepsort_{sequence}_summary.txt')
     
     if not os.path.exists(bt_txt) or not os.path.exists(ds_txt):
-        print("Tracking files not available")
+        print(f"Tracking files not available for {model_name}")
         return
     
     bt_df = load_tracking_results(bt_txt)
     ds_df = load_tracking_results(ds_txt)
+    
+    if bt_df is None or ds_df is None:
+        print(f"Could not load tracking data for {model_name}")
+        return
     
     bt_metrics = load_metrics(bt_summary)
     ds_metrics = load_metrics(ds_summary)
@@ -215,7 +219,7 @@ def compare_trackers(sequence='MOT17-02-DPM', tracking_dir='output/tracking', ou
     ax1.hist(ds_track_lengths, bins=30, alpha=0.6, label='DeepSORT', edgecolor='black', color='#e74c3c')
     ax1.set_xlabel('Track Length (frames)', fontsize=12)
     ax1.set_ylabel('Number of Tracks', fontsize=12)
-    ax1.set_title('Track Length Distribution', fontsize=14, fontweight='bold')
+    ax1.set_title(f'Track Length Distribution - {model_name}', fontsize=14, fontweight='bold')
     ax1.legend(fontsize=11)
     ax1.grid(True, alpha=0.3, axis='y')
     
@@ -235,18 +239,19 @@ def compare_trackers(sequence='MOT17-02-DPM', tracking_dir='output/tracking', ou
         
         ax2.set_xlabel('Metric', fontsize=12)
         ax2.set_ylabel('Value', fontsize=12)
-        ax2.set_title('MOTChallenge Metrics', fontsize=14, fontweight='bold')
+        ax2.set_title(f'MOTChallenge Metrics - {model_name}', fontsize=14, fontweight='bold')
         ax2.set_xticks(x)
         ax2.set_xticklabels([m.upper() for m in metrics])
         ax2.legend(fontsize=11)
         ax2.grid(True, alpha=0.3, axis='y')
     
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'tracker_comparison.png'), dpi=300, bbox_inches='tight')
+    graph_filename = f'{model_name}_tracker_comparison.png' if model_name else 'tracker_comparison.png'
+    plt.savefig(os.path.join(output_dir, graph_filename), dpi=300, bbox_inches='tight')
     plt.close()
     
     print("\n" + "="*60)
-    print("TRACKER COMPARISON")
+    print(f"TRACKER COMPARISON - {model_name}")
     print("="*60)
     print(f"\nNumber of Tracks:")
     print(f"  ByteTrack: {bt_num_tracks}")
@@ -266,7 +271,7 @@ def compare_trackers(sequence='MOT17-02-DPM', tracking_dir='output/tracking', ou
             print(f"  ID Switches - ByteTrack: {int(float(bt_metrics['num_switches']))}, DeepSORT: {int(float(ds_metrics['num_switches']))}")
     
     print("="*60)
-    print(f"\nGraph saved to: {output_dir}/tracker_comparison.png")
+    print(f"\nGraph saved to: {output_dir}/{graph_filename}")
 
 
 if __name__ == '__main__':
@@ -281,9 +286,9 @@ if __name__ == '__main__':
     
     if args.model is None:
         models = {
-            "Model 1": "models/dataset1/weights/best.pt",
-            "Model 2": "models/dataset2/weights/best.pt",
-            "Model 3": "models/combined/weights/best.pt"
+            "best_dataset1": "best_dataset1.pt",
+            "best_dataset2": "best_dataset2.pt",
+            "best_combined": "best_combined.pt"
         }
         
         print("="*60)
@@ -297,10 +302,10 @@ if __name__ == '__main__':
                 print(f"Testing {model_name}")
                 print(f"{'='*60}")
                 
-                results = test_mot_tracking(args.sequence, model_path, args.tracker)
+                results = test_mot_tracking(args.sequence, model_path, model_name, args.tracker)
                 if results:
                     all_results[model_name] = results
-                    compare_trackers(args.sequence)
+                    compare_trackers(args.sequence, model_name)
             else:
                 print(f"Model {model_name} not found at {model_path}, skipping...")
         
@@ -315,5 +320,6 @@ if __name__ == '__main__':
                         summary = tracker_results['summary']
                         print(f"  {tracker_name.upper()}: MOTA={float(summary['mota'].iloc[0]):.4f}, IDF1={float(summary['idf1'].iloc[0]):.4f}")
     else:
-        test_mot_tracking(args.sequence, args.model, args.tracker)
-        compare_trackers(args.sequence)
+        model_name = os.path.basename(args.model).replace('.pt', '')
+        test_mot_tracking(args.sequence, args.model, model_name, args.tracker)
+        compare_trackers(args.sequence, model_name)
